@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+  <style>
+    body { margin: 0; }
+    .video-container {
+        position: relative;
+        width: 100%;
+        height: 0;
+        padding-bottom: 56.25%;
+    }
+    video, img {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0; left: 0;
+        display: none;
+    }
+    .active { display: block; }
+  </style>
+</head>
+<body>
+<div class="video-container">
+  <video id="videoPlayer" controls muted></video>
+  <img id="placeholderImage" src="https://ashinofu-miva.com/wp-content/uploads/2024/08/sleepingmiva.png" alt="配信が開始されていません">
+</div>
+
+<script>
+const video = document.getElementById('videoPlayer');
+const placeholderImage = document.getElementById('placeholderImage');
+placeholderImage.classList.add('active');
+
+function showVideo() {
+    placeholderImage.classList.remove('active');
+    video.classList.add('active');
+    video.play().catch((e) => console.warn("Autoplay blocked:", e));
+}
+function showPlaceholder() {
+    video.classList.remove('active');
+    placeholderImage.classList.add('active');
+}
+function initHls() {
+    if (Hls.isSupported()) {
+        const hls = new Hls();
+        hls.loadSource('https://ashinofu-miva-live.xyz/hls/stream.m3u8');
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, showVideo);
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = 'https://ashinofu-miva-live.xyz/hls/stream.m3u8';
+        video.addEventListener('canplay', showVideo);
+    }
+}
+const socket = new WebSocket('wss://ashinofu-miva-live.xyz/ws/');
+socket.addEventListener('message', function(event) {
+    const data = JSON.parse(event.data);
+    if (data.message === 'stream_started') initHls();
+    if (data.message === 'stream_ended') showPlaceholder();
+});
+window.addEventListener('load', initHls);
+</script>
+</body>
+</html>
